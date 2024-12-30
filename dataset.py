@@ -28,11 +28,5 @@ for root, dirs, files in os.walk(folder_path):
             # 將資料加入列表
             data.append({'filepath': filepath, 'label': 1})
 
-df = pd.read_csv('./train/_annotations.csv')
-
-for index,row in df.iterrows():
-    path = f'./train/{row["filename"]}'
-    data.append({'filepath': path, 'label': 1})
-
 df = pd.DataFrame(data)
 df.to_csv('image_data.csv')
