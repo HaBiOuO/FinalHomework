@@ -41,12 +41,10 @@ class CNN(nn.Module):
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-# 加載模型
 model = torch.load('model.pth', map_location=device)
 model.eval()
 model = model.to(device)
 
-# 定義圖片轉換（需與訓練時一致）
 transform = transforms.Compose([
     transforms.Resize((256, 256)),
     transforms.ToTensor(),
@@ -73,14 +71,10 @@ image_extensions = '.jpg'
 datas = []
 total = 0
 
-# 遍歷資料夾及子資料夾
 for root, dirs, files in os.walk(folder_path):
     for file in files:
         if os.path.splitext(file)[1].lower() == image_extensions:
-            # 完整檔案路徑
             filepath = os.path.join(root, file)
-            # 標籤是資料夾名稱
-            # 將資料加入列表
             datas.append({'filepath': filepath, 'label': 1})
 
 correct = 0
