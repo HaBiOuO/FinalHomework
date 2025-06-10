@@ -1,90 +1,51 @@
 import torch
-from torchvision import transforms
-from PIL import Image
 import torch.nn as nn
-import torch.nn.functional as F
-import warnings
+from torchvision import models, transforms
+from PIL import Image
+from PIL import ImageDraw, ImageFont
+import matplotlib.pyplot as plt
 import os
-import pandas as pd
-warnings.filterwarnings("ignore", category=FutureWarning)
 
-class CNN(nn.Module):
-    def __init__(self):
-        super(CNN, self).__init__()
-        self.conv1 = nn.Conv2d(3, 32, kernel_size=3)
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=3)
-        self.pool = nn.MaxPool2d(kernel_size=3)
-        self.conv3 = nn.Conv2d(64, 128, kernel_size=3)
-        self.conv4 = nn.Conv2d(128, 256, kernel_size=3)
-        self.conv5 = nn.Conv2d(256, 512, kernel_size=3)
-        self.conv6 = nn.Conv2d(512, 1024, kernel_size=3)
-        self.conv7 = nn.Conv2d(1024, 512, kernel_size=3)
-        self.conv8 = nn.Conv2d(512,256,kernel_size=3)
-        self.dropout = nn.Dropout(0.2)
-        self.flatten = nn.Flatten()
-        self.fc1 = nn.Linear(256, 10)
-        self.fc3 = nn.Linear(10, 2)
-
-    def forward(self, x):
-        x = F.relu(self.conv1(x))
-        x = F.relu(self.conv2(x))
-        x = self.pool(F.relu(self.conv3(x)))
-        x = F.relu(self.conv4(x))
-        x = self.pool(F.relu(self.conv5(x)))
-        x = self.pool(F.relu(self.conv6(x)))
-        x = F.relu(self.conv7(x))
-        x = self.pool(F.relu(self.conv8(x)))
-        x = self.flatten(x)  
-        x = self.fc1(x)
-        x = self.fc3(x)
-        return x
-
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-model = torch.load('model.pth', map_location=device)
-model.eval()
-model = model.to(device)
-
-transform = transforms.Compose([
-    transforms.Resize((256, 256)),
+preprocess = transforms.Compose([
+    transforms.CenterCrop(224),
     transforms.ToTensor(),
-    transforms.Normalize([0.5,0.5,0.5], [0.5,0.5,0.5])
+    transforms.Normalize([0.485, 0.456, 0.406],
+                         [0.229, 0.224, 0.225])
 ])
 
-labels = ["otter", "other"]
+image_path = 'dog.jpg'
+input_image = Image.open(image_path).convert('RGB')
+input_tensor = preprocess(input_image)
+input_batch = input_tensor.unsqueeze(0)
 
-def predict_image(image_path):
-    image = Image.open(image_path).convert('RGB')
-    input_tensor = transform(image).unsqueeze(0)
-    input_tensor = input_tensor.to(device)
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    with torch.no_grad():
-        output = model(input_tensor)
-        _, predicted = torch.max(output, 1)
-    predicted_label = labels[predicted.item()]
-    return predicted_label
+model = models.resnet101(pretrained=False)
+num_classes = 89  
+model.fc = nn.Linear(model.fc.in_features, num_classes)
 
 
+model.load_state_dict(torch.load("finetuned_googlenet.pth", map_location=device))
+model.to(device)
+model.eval()
 
-folder_path = "your test folder"
-image_extensions = '.jpg'
-datas = []
-total = 0
+class_names = ['antelope', 'badger', 'bat', 'bear', 'bee', 'beetle', 'bison', 'boar', 'butterfly', 'cat', 'caterpillar', 'chimpanzee', 'cockroach', 'cow', 'coyote', 'crab', 'crow', 'deer', 'dog', 'dolphin', 'donkey', 'dragonfly', 'duck', 'eagle', 'elephant', 'flamingo', 'fly', 'fox', 'goat', 'goldfish', 'goose', 'gorilla', 'grasshopper', 'hamster', 'hare', 'hedgehog', 'hippopotamus', 'hornbill', 'horse', 'hummingbird', 'hyena', 'jellyfish', 'kangaroo', 'koala', 'ladybugs', 'leopard', 'lion', 'lizard', 'lobster', 'mosquito', 'moth', 'mouse', 'octopus', 'okapi', 'orangutan', 'owl', 'ox', 'oyster', 'panda', 'parrot', 'pelecaniformes', 'penguin', 'pig', 'pigeon', 'porcupine', 'possum', 'raccoon', 'rat', 'reindeer', 'rhinoceros', 'sandpiper', 'seahorse', 'seal', 'shark', 'sheep', 'snake', 'sparrow', 'squid', 'squirrel', 'starfish', 'swan', 'tiger', 'turkey', 'turtle', 'whale', 'wolf', 'wombat', 'woodpecker', 'zebra']
 
-for root, dirs, files in os.walk(folder_path):
-    for file in files:
-        if os.path.splitext(file)[1].lower() == image_extensions:
-            filepath = os.path.join(root, file)
-            datas.append({'filepath': filepath, 'label': 1})
+with torch.no_grad():
+    input_batch = input_batch.to(device)
+    output = model(input_batch)
+    _, predicted = torch.max(output, 1)
+    predicted_class = class_names[predicted.item()]
 
-correct = 0
-for data in datas:
-    result = predict_image(data['filepath'])
-    if(result == 'other'):
-        print(f"Not otter")
-    else:
-        correct +=1 
-        print(f"The predicted label for the image is: {result}")
-    total += 1
 
-print(f'Accuracy:{correct/total}')
+image_with_text = input_image.copy()
+draw = ImageDraw.Draw(image_with_text)
+font = ImageFont.load_default(size=50)
+
+text = f"{predicted_class}"
+text_position = (10, 10)
+text_color = (255, 0, 0)
+draw.text(text_position, text, fill=text_color, font=font)
+plt.imshow(image_with_text)
+image_with_text.save("output_with_label.jpg")  
+
