@@ -13,7 +13,7 @@ preprocess = transforms.Compose([
                          [0.229, 0.224, 0.225])
 ])
 
-image_path = 'dog.jpg'
+image_path = 'test_filename'
 input_image = Image.open(image_path).convert('RGB')
 input_tensor = preprocess(input_image)
 input_batch = input_tensor.unsqueeze(0)
